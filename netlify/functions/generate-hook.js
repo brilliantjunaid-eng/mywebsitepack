@@ -1,10 +1,12 @@
 // netlify/functions/generate-hook.js
 // ─────────────────────────────────────────────────────────
-// Uses Google Gemini API (free tier — no credit card needed)
+// Uses Groq API (free tier — no credit card needed)
 // SETUP:
-// 1. Go to aistudio.google.com → Get API key → copy it
-// 2. Netlify → Site configuration → Environment variables
-//    Add: GEMINI_API_KEY = your key
+// 1. Go to console.groq.com → sign up free
+// 2. Go to API Keys → Create API key → copy it
+// 3. Netlify → Site configuration → Environment variables
+//    Add: GROQ_API_KEY = your key
+// 4. Push this file to GitHub — Netlify auto-redeploys
 // ─────────────────────────────────────────────────────────
 
 exports.handler = async function (event) {
@@ -63,20 +65,22 @@ exports.handler = async function (event) {
     "Tone: warm, curious, like a thoughtful mentor. Not a textbook. Not generic."
   ].join("\n");
 
-  var apiKey = process.env.GEMINI_API_KEY;
-  var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
   var response;
   try {
-    response = await fetch(url, {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + process.env.GROQ_API_KEY
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 1000 }
+        model: "llama-3.1-8b-instant",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
       })
     });
   } catch (e) {
-    console.error("Gemini fetch failed:", e);
+    console.error("Groq fetch failed:", e);
     return { statusCode: 502, body: "Upstream API error" };
   }
 
@@ -87,8 +91,8 @@ exports.handler = async function (event) {
     return { statusCode: 502, body: "Invalid upstream response" };
   }
 
-  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-    console.error("Unexpected Gemini response:", JSON.stringify(data));
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    console.error("Unexpected Groq response:", JSON.stringify(data));
     return {
       statusCode: 502,
       headers: { "Content-Type": "application/json" },
@@ -96,7 +100,7 @@ exports.handler = async function (event) {
     };
   }
 
-  var text = data.candidates[0].content.parts[0].text;
+  var text = data.choices[0].message.content;
   var clean = text.replace(/```json|```/g, "").trim();
 
   return {
