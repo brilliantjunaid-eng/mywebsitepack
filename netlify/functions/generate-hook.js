@@ -1,7 +1,11 @@
 // netlify/functions/generate-hook.js
 // ─────────────────────────────────────────────────────────
-// Uses OpenRouter (free tier available at openrouter.ai)
-// Set OPENROUTER_API_KEY in Netlify → Site Settings → Environment Variables
+// Uses Google Gemini API (free tier — no credit card needed)
+// SETUP:
+// 1. Go to aistudio.google.com → Get API key → copy it
+// 2. Netlify → Site configuration → Environment variables
+//    Add: GEMINI_API_KEY = your key
+// 3. Push this file to GitHub and Netlify auto-redeploys
 // ─────────────────────────────────────────────────────────
 
 exports.handler = async function (event) {
@@ -60,24 +64,21 @@ exports.handler = async function (event) {
     "Tone: warm, curious, like a thoughtful mentor. Not a textbook. Not generic."
   ].join("\n");
 
+  var apiKey = process.env.GEMINI_API_KEY;
+  var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
   var response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + process.env.OPENROUTER_API_KEY,  // ← set this in Netlify
-        "HTTP-Referer": "https://iridescent-blini-4cf89c.netlify.app", // your site URL
-        "X-Title": "Pact Study App"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free", // free model, no cost
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 1000 }
       })
     });
   } catch (e) {
-    console.error("OpenRouter fetch failed:", e);
+    console.error("Gemini fetch failed:", e);
     return { statusCode: 502, body: "Upstream API error" };
   }
 
@@ -88,14 +89,21 @@ exports.handler = async function (event) {
     return { statusCode: 502, body: "Invalid upstream response" };
   }
 
-  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-    console.error("Unexpected OpenRouter response:", JSON.stringify(data));
-    return { statusCode: 502, body: "Empty response from OpenRouter" };
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    console.error("Unexpected Gemini response:", JSON.stringify(data));
+    return {
+      statusCode: 502,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Unexpected response", detail: data })
+    };
   }
+
+  var text = data.candidates[0].content.parts[0].text;
+  var clean = text.replace(/```json|```/g, "").trim();
 
   return {
     statusCode: 200,
     headers: { "Content-Type": "application/json" },
-    body: data.choices[0].message.content
+    body: clean
   };
 };
