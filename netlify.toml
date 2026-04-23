@@ -1,0 +1,6 @@
+# netlify.toml
+# Tells Netlify where your serverless functions live.
+# Place this file in the ROOT of your project folder.
+
+[functions]
+  directory = "netlify/functions"
