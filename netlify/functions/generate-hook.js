@@ -1,7 +1,6 @@
 // netlify/functions/generate-hook.js
 // ─────────────────────────────────────────────────────────
 // Uses Groq API (free tier — no credit card needed)
-// SETUP:
 // 1. Go to console.groq.com → sign up free
 // 2. Go to API Keys → Create API key → copy it
 // 3. Netlify → Site configuration → Environment variables
