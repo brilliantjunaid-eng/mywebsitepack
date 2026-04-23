@@ -5,7 +5,6 @@
 // 1. Go to aistudio.google.com → Get API key → copy it
 // 2. Netlify → Site configuration → Environment variables
 //    Add: GEMINI_API_KEY = your key
-// 3. Push this file to GitHub and Netlify auto-redeploys
 // ─────────────────────────────────────────────────────────
 
 exports.handler = async function (event) {
